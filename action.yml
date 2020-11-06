@@ -2,15 +2,15 @@ name: 'ESLint for Pull Requests'
 description: 'Action that eslints your code and reports only the problems introduced by your pull request'
 inputs:
   npm-token:
-    description: 'Token for accessing private NPM packages, ie custom linter settings'
+    description: 'Token for accessing private NPM packages, ie custom linter settings. Usually ${{ secrets.NPM_TOKEN }}, if required.'
     required: false
     default:
   eslint-config-package:
-    description: 'Package to install for custom ESLint config, if required'
+    description: 'Package to install for custom ESLint config, if required. Something like @org/eslint-config-custom-rules.'
     required: false
     default:
   eslint-config-base:
-    description: 'Name of ESLint config to use, if not provided in repo (ie through .eslintrc)'
+    description: 'Name of ESLint config to use, if not provided in repo (ie through .eslintrc). Something like @org/custom-rules.'
     required: false
     default:
 outputs:
@@ -50,8 +50,9 @@ runs:
       run: |
         npm install ${{ inputs.eslint-config-package }}
     - name: Create linter config file
+      if: inputs.eslint-config-base
       run: |
-        echo '{"extends":"@triggi/olisto-nodejs"}' > _ci-eslint-config.json
+        echo '{"extends":"'${{ inputs.eslint-config-base }}'"}' > _ci-eslint-config.json
     - name: Run linter for current
       run: |
         npx eslint -c _ci-eslint-config.json -f compact . > result-current || true
