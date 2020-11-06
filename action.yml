@@ -2,7 +2,7 @@ name: 'ESLint for Pull Requests'
 description: 'Action that eslints your code and reports only the problems introduced by your pull request'
 inputs:
   npm-token:
-    description: 'Token for accessing private NPM packages, ie custom linter settings. Usually ${{ secrets.NPM_TOKEN }}, if required.'
+    description: 'Token for accessing private NPM packages, ie custom linter settings. Usually {{ secrets.NPM_TOKEN }}, if required.'
     required: false
     default:
   eslint-config-package:
