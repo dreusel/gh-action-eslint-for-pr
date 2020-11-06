@@ -19,79 +19,79 @@ outputs:
     value: ${{ steps.random-number-generator.outputs.random-id }}
 runs:
   using: "composite"
-    steps:
-    - name: Setup Node.js
-      uses: actions/setup-node@v1
-      with:
-        node-version: 10.x
-    - name: Checkout branch
-      uses: actions/checkout@v2
-    - name: Cache node modules
-      id: cache_npm
-      uses: pat-s/always-upload-cache@v2.1.0
-      env:
-        cache-name: node-modules
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-lint-${{ env.cache-name }}-3
-    - name: Install eslint
-      if: steps.cache_npm.outputs.cache-hit == false
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      run: |
-        rm package.json
-        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        npm install eslint --no-save
-    - name: Install linter config
-      if: inputs.eslint-config-package
-      if: steps.cache_npm.outputs.cache-hit == false
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      run: |
-        npm install ${{ inputs.eslint-config-package }}
-    - name: Create linter config file
-      if: inputs.eslint-config-base
-      run: |
-        echo '{"extends":"'${{ inputs.eslint-config-base }}'"}' > _ci-eslint-config.json
-    - name: Run linter for current
-      run: |
-        npx eslint -c _ci-eslint-config.json -f compact . > result-current || true
-    - name: Cache linter baseline
-      id: cache_baseline
-      uses: pat-s/always-upload-cache@v2.1.0
-      env:
-        cache-name: lint-results-base
-      with:
-        path: result-base
-        key: ${{ runner.os }}-lint-${{ env.cache-name }}-${{ github.event.pull_request.base.sha }}
-    - name: Checkout base (${{ github.base_ref }})
-      if: steps.cache_baseline.outputs.cache-hit == false
-      uses: actions/checkout@v2
-      with:
-        ref: ${{ github.base_ref }}
-        path: _ci-checkout-base
-    - name: Run linter for baseline
-      if: steps.cache_baseline.outputs.cache-hit == false
-      run: |
-        npx eslint -c _ci-eslint-config.json -f compact _ci-checkout-base | sed -e's/\/_ci-checkout-base//' > result-base || true
-    - name: Find differences and report
-      run: |
-        # Mask the line numbers and see if there is any difference then. If not, differences are caused by changed line numbers.
-        # We mask them with regexes, so we can use them to filter all changed lines later
-        # diff to find the difference. Use sed on both inputs to replace the line number by a regex that matches anything until the next comma.
-        # grep to filter only the lines that start with a single '+' (additions)
-        # sed to remove the '+'s at the start of the lines
-        # grep -v to remove the (possible) line sayin n problem(s)
-        # true to make sure to not return non-zero exit code (when diff is empty)
-        diff -u0 <(cat result-base | sed -e 's/: line\([^,]*\)/: line \\([^,]*\\)/' ) <(cat result-current | sed -e 's/: line\([^,]*\)/: line \\([^,]*\\)/') | grep "^+[^+]" | sed -E 's/^\+//' | grep -v "problem$\|problems$" > result-diff-masked || true
-        # Combine the masked lines into one line, each original line separated by '\|' (grep OR) so we can use it to filter the matching problems from all current problems - which include the correct line numbers
-        FILTER=$(cat result-diff-masked | sort -u | awk 'ORS="\\|"' | sed 's/\\|$//')
-        # If filter is empty grep would match everything; make it a regex that doesn't match anything instead
-        if [ -z "$FILTER" ] ; then FILTER="^$" ; fi
-        # As above, but leaving the line numbers in this time
-        diff -u0 result-base result-current | grep "^+[^+]" | sed -E 's/^\+//' | grep -v "problem$\|problems$" | grep "$FILTER" || true
-        # Return non-zero code if the masked diff yielded any lines
-        [ -z "$(cat result-diff-masked)" ]
+  steps:
+  - name: Setup Node.js
+    uses: actions/setup-node@v1
+    with:
+      node-version: 10.x
+  - name: Checkout branch
+    uses: actions/checkout@v2
+  - name: Cache node modules
+    id: cache_npm
+    uses: pat-s/always-upload-cache@v2.1.0
+    env:
+      cache-name: node-modules
+    with:
+      path: node_modules
+      key: ${{ runner.os }}-lint-${{ env.cache-name }}-3
+  - name: Install eslint
+    if: steps.cache_npm.outputs.cache-hit == false
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    run: |
+      rm package.json
+      echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+      npm install eslint --no-save
+  - name: Install linter config
+    if: inputs.eslint-config-package
+    if: steps.cache_npm.outputs.cache-hit == false
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    run: |
+      npm install ${{ inputs.eslint-config-package }}
+  - name: Create linter config file
+    if: inputs.eslint-config-base
+    run: |
+      echo '{"extends":"'${{ inputs.eslint-config-base }}'"}' > _ci-eslint-config.json
+  - name: Run linter for current
+    run: |
+      npx eslint -c _ci-eslint-config.json -f compact . > result-current || true
+  - name: Cache linter baseline
+    id: cache_baseline
+    uses: pat-s/always-upload-cache@v2.1.0
+    env:
+      cache-name: lint-results-base
+    with:
+      path: result-base
+      key: ${{ runner.os }}-lint-${{ env.cache-name }}-${{ github.event.pull_request.base.sha }}
+  - name: Checkout base (${{ github.base_ref }})
+    if: steps.cache_baseline.outputs.cache-hit == false
+    uses: actions/checkout@v2
+    with:
+      ref: ${{ github.base_ref }}
+      path: _ci-checkout-base
+  - name: Run linter for baseline
+    if: steps.cache_baseline.outputs.cache-hit == false
+    run: |
+      npx eslint -c _ci-eslint-config.json -f compact _ci-checkout-base | sed -e's/\/_ci-checkout-base//' > result-base || true
+  - name: Find differences and report
+    run: |
+      # Mask the line numbers and see if there is any difference then. If not, differences are caused by changed line numbers.
+      # We mask them with regexes, so we can use them to filter all changed lines later
+      # diff to find the difference. Use sed on both inputs to replace the line number by a regex that matches anything until the next comma.
+      # grep to filter only the lines that start with a single '+' (additions)
+      # sed to remove the '+'s at the start of the lines
+      # grep -v to remove the (possible) line sayin n problem(s)
+      # true to make sure to not return non-zero exit code (when diff is empty)
+      diff -u0 <(cat result-base | sed -e 's/: line\([^,]*\)/: line \\([^,]*\\)/' ) <(cat result-current | sed -e 's/: line\([^,]*\)/: line \\([^,]*\\)/') | grep "^+[^+]" | sed -E 's/^\+//' | grep -v "problem$\|problems$" > result-diff-masked || true
+      # Combine the masked lines into one line, each original line separated by '\|' (grep OR) so we can use it to filter the matching problems from all current problems - which include the correct line numbers
+      FILTER=$(cat result-diff-masked | sort -u | awk 'ORS="\\|"' | sed 's/\\|$//')
+      # If filter is empty grep would match everything; make it a regex that doesn't match anything instead
+      if [ -z "$FILTER" ] ; then FILTER="^$" ; fi
+      # As above, but leaving the line numbers in this time
+      diff -u0 result-base result-current | grep "^+[^+]" | sed -E 's/^\+//' | grep -v "problem$\|problems$" | grep "$FILTER" || true
+      # Return non-zero code if the masked diff yielded any lines
+      [ -z "$(cat result-diff-masked)" ]
         
         
 #    steps: 
